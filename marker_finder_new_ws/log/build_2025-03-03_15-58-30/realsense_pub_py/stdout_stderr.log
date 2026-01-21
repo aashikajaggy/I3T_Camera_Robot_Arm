@@ -1,0 +1,23 @@
+running egg_info
+writing ../../build/realsense_pub_py/realsense_pub_py.egg-info/PKG-INFO
+writing dependency_links to ../../build/realsense_pub_py/realsense_pub_py.egg-info/dependency_links.txt
+writing entry points to ../../build/realsense_pub_py/realsense_pub_py.egg-info/entry_points.txt
+writing requirements to ../../build/realsense_pub_py/realsense_pub_py.egg-info/requires.txt
+writing top-level names to ../../build/realsense_pub_py/realsense_pub_py.egg-info/top_level.txt
+reading manifest file '../../build/realsense_pub_py/realsense_pub_py.egg-info/SOURCES.txt'
+writing manifest file '../../build/realsense_pub_py/realsense_pub_py.egg-info/SOURCES.txt'
+running build
+running build_py
+copying realsense_pub_py/marker_finder_publisher.py -> /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build/lib/realsense_pub_py
+copying realsense_pub_py/__init__.py -> /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build/lib/realsense_pub_py
+running install
+running install_lib
+running install_data
+copying resource/realsense_pub_py -> /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/share/ament_index/resource_index/packages
+copying package.xml -> /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/share/realsense_pub_py
+running install_egg_info
+removing '/home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages/realsense_pub_py-0.0.0-py3.10.egg-info' (and everything under it)
+Copying ../../build/realsense_pub_py/realsense_pub_py.egg-info to /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages/realsense_pub_py-0.0.0-py3.10.egg-info
+running install_scripts
+Installing publisher_node script to /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/realsense_pub_py
+writing list of installed files to '/home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/install.log'

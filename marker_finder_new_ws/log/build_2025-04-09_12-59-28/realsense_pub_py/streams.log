@@ -1,0 +1,29 @@
+[0.428s] Invoking command in '/home/ryleighbyrne/marker_finder_new_ws/src/realsense_pub_py': CONDA_PROMPT_MODIFIER=(base) PYTHONPATH=/home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/realsense_pub_py build --build-base /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build install --record /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/install.log --single-version-externally-managed install_data
+[0.574s] running egg_info
+[0.582s] writing ../../build/realsense_pub_py/realsense_pub_py.egg-info/PKG-INFO
+[0.582s] writing dependency_links to ../../build/realsense_pub_py/realsense_pub_py.egg-info/dependency_links.txt
+[0.582s] writing entry points to ../../build/realsense_pub_py/realsense_pub_py.egg-info/entry_points.txt
+[0.582s] writing requirements to ../../build/realsense_pub_py/realsense_pub_py.egg-info/requires.txt
+[0.582s] writing top-level names to ../../build/realsense_pub_py/realsense_pub_py.egg-info/top_level.txt
+[0.599s] reading manifest file '../../build/realsense_pub_py/realsense_pub_py.egg-info/SOURCES.txt'
+[0.600s] writing manifest file '../../build/realsense_pub_py/realsense_pub_py.egg-info/SOURCES.txt'
+[0.600s] running build
+[0.600s] running build_py
+[0.600s] copying realsense_pub_py/marker_finder_publisher.py -> /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build/lib/realsense_pub_py
+[0.600s] copying realsense_pub_py/__init__.py -> /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build/lib/realsense_pub_py
+[0.600s] copying realsense_pub_py/marker_finder_subscriber.py -> /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build/lib/realsense_pub_py
+[0.600s] running install
+[0.603s] running install_lib
+[0.611s] copying /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build/lib/realsense_pub_py/marker_finder_subscriber.py -> /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages/realsense_pub_py
+[0.611s] byte-compiling /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages/realsense_pub_py/marker_finder_subscriber.py to marker_finder_subscriber.cpython-310.pyc
+[0.612s] running install_data
+[0.612s] copying resource/realsense_pub_py -> /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/share/ament_index/resource_index/packages
+[0.612s] copying package.xml -> /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/share/realsense_pub_py
+[0.612s] running install_egg_info
+[0.621s] removing '/home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages/realsense_pub_py-0.0.0-py3.10.egg-info' (and everything under it)
+[0.621s] Copying ../../build/realsense_pub_py/realsense_pub_py.egg-info to /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages/realsense_pub_py-0.0.0-py3.10.egg-info
+[0.621s] running install_scripts
+[0.695s] Installing publisher_node script to /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/realsense_pub_py
+[0.695s] Installing subscriber_node script to /home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/realsense_pub_py
+[0.696s] writing list of installed files to '/home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/install.log'
+[0.709s] Invoked command in '/home/ryleighbyrne/marker_finder_new_ws/src/realsense_pub_py' returned '0': CONDA_PROMPT_MODIFIER=(base) PYTHONPATH=/home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/ryleighbyrne/marker_finder_new_ws/install/realsense_pub_py/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base ../../build/realsense_pub_py build --build-base /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/build install --record /home/ryleighbyrne/marker_finder_new_ws/build/realsense_pub_py/install.log --single-version-externally-managed install_data

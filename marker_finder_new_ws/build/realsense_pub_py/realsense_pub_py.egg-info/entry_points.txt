@@ -1,0 +1,3 @@
+[console_scripts]
+publisher_node = realsense_pub_py.marker_finder_publisher:main
+subscriber_node = realsense_pub_py.marker_finder_subscriber:main

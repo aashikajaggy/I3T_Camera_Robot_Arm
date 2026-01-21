@@ -1,0 +1,13 @@
+Metadata-Version: 2.2
+Name: realsense_pub_py
+Version: 0.0.0
+Summary: TODO: Package description
+Maintainer: ryleighbyrne
+Maintainer-email: tianyi.hu@duke.edu
+License: Apache License 2.0
+Requires-Dist: setuptools
+Dynamic: license
+Dynamic: maintainer
+Dynamic: maintainer-email
+Dynamic: requires-dist
+Dynamic: summary
