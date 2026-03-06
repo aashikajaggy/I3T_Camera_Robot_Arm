@@ -5,29 +5,11 @@ import pyrealsense2 as rs
 import cv2
 import numpy as np
 
-pipeline = rs.pipeline()
 
 
-config = rs.config()
 
 
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
-device_product_line = str(device.get_info(rs.camera_info.product_line))
 
-found_rgb = False
-for s in device.sensors:
-    if s.get_info(rs.camera_info.name) == 'RGB Camera':
-        found_rgb = True
-        break
-if not found_rgb:
-    print("The demo requires Depth camera with Color sensor")
-    exit(0)
-
-
-config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
 
 
@@ -41,6 +23,21 @@ align = rs.align(align_to)
 
 class  MarkerFinderPublisher(Node):
     def __init__(self):
+        #main streaming interface for the camera 
+        pipeline = rs.pipeline()
+        config = rs.config()
+        #exracting device information
+        pipeline_wrapper = rs.pipeline_wrapper(pipeline)
+        pipeline_profile = config.resolve(pipeline_wrapper)
+        device = pipeline_profile.get_device()
+
+        #enables the depth stream 
+        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        #enables the color stream
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        
+
+
         super().__init__('marker_finder_publisher')
         self.publisher_ = self.create_publisher(String, 'marker_location', 10)
         time_period = 0.5
@@ -72,9 +69,6 @@ class  MarkerFinderPublisher(Node):
             key = cv2.waitKey(1)
 
             return depth_image, color_image, color_intrinsics
-
-        finally:
-                pipeline.stop()
         
     def capture_marker_depth(self, depth_image, color_image):
         gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
