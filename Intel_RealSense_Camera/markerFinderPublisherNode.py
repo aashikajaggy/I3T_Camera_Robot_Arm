@@ -5,70 +5,124 @@ import pyrealsense2 as rs
 import cv2
 import numpy as np
 
-
-
-
-
-
-
-
-
-profile = pipeline.start(config)
-
-
-depth_sensor = profile.get_device().first_depth_sensor()
-
-align_to = rs.stream.color
-align = rs.align(align_to)
-
 class  MarkerFinderPublisher(Node):
     def __init__(self):
+        #initialize the node
+        super().__init__('marker_finder_publisher')
         #main streaming interface for the camera 
-        pipeline = rs.pipeline()
-        config = rs.config()
-        #exracting device information
-        pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-        pipeline_profile = config.resolve(pipeline_wrapper)
-        device = pipeline_profile.get_device()
+        self.pipeline = rs.pipeline()
+        self.config = rs.config()
+
 
         #enables the depth stream 
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         #enables the color stream
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+
+        self._start_pipeline()
+
+        #timeout counter
+        self.max_poll_ms = 500
+        self.restart_after_timeouts = 5
+        self.poll_tries = 6            # total ~3s per timer tick
+
+        #sets u; frame alignment to map the color image to the depth image 
+        self.align_to = rs.stream.color
+        self.align = rs.align(self.align_to)
+        self.consecutive_timeouts = 0
         
-
-
-        super().__init__('marker_finder_publisher')
+        
+        #we are publishing to the mrker location topic with 10 outgoing messages stored inside of a queue
         self.publisher_ = self.create_publisher(String, 'marker_location', 10)
         time_period = 0.5
         self.timer = self.create_timer(time_period, self.timer_callback)
         self.i = 0
 
-    #code to capture the depth and color image numpy arrays along with the intrinsic matrix for the color image
+    def _poll_frames(self):
+        # Try poll loop to avoid long blocking timeouts
+        for _ in range(self.poll_tries):
+            try:
+                fs = self.pipeline.wait_for_frames(self.max_poll_ms)
+            except Exception:
+                fs = None
+            if fs:
+                return fs
+        return None
 
-    def capture_depth_color_image(self):
+    def _start_pipeline(self):
+        # (Re)start pipeline and related helpers
+        self.profile = self.pipeline.start(self.config)
+
+        # Reduce internal frame queues to avoid stale frames
+        dev = self.profile.get_device()
+        for s in dev.sensors:
+            if s.supports(rs.option.frames_queue_size):
+                try:
+                    s.set_option(rs.option.frames_queue_size, 1)
+                except Exception:
+                    pass
+
+        self.depth_sensor = dev.first_depth_sensor()
+        self.depth_scale = self.depth_sensor.get_depth_scale()
+        self.align = rs.align(rs.stream.color)
+
+        # Warmup (non-fatal if some time out)
+        for _ in range(10):
+            try:
+                fs = self.pipeline.wait_for_frames(200)
+                if fs: break
+            except Exception:
+                pass
+        self.get_logger().info(f"Depth scale: {self.depth_scale:.6f}. Pipeline started.")
+
+    def _stop_pipeline(self):
         try:
-            #we need to eventually implement constant streaming, updating values in the topic 
-            frames = pipeline.wait_for_frames()
+            self.pipeline.stop()
+        except Exception:
+            pass
+    
+    
+    def _restart_pipeline(self, do_hw_reset=False):
+        self.get_logger().warn("Restarting RealSense pipeline...")
+        self._stop_pipeline()
+        if do_hw_reset:
+            try:
+                self.profile.get_device().hardware_reset()
+            except Exception:
+                pass
+        self._start_pipeline()
+        self.consecutive_timeouts = 0
+    
+    #code to capture the depth and color image numpy arrays along with the intrinsic matrix for the color image
+    def capture_depth_color_image(self):
+        
+        #we need to eventually implement constant streaming, updating values in the topic 
+        frames = self._poll_frames()
 
-            aligned_frames = align.process(frames)
+        #handling failures to receive frames from a camera pipeline 
+        if frames is None:
+            self.consecutive_timeouts += 1
+            self.get_logger().warn(f"No frames ({self.consecutive_timeouts} consecutive timeouts).")
+            if self.consecutive_timeouts >= self.restart_after_timeouts:
+                # First soft restart, then hard reset if still bad
+                hard = (self.consecutive_timeouts >= 2*self.restart_after_timeouts)
+                self._restart_pipeline(do_hw_reset=hard)
+            return
 
+        aligned_frames = self.align.process(frames)
 
-            aligned_depth_frame = aligned_frames.get_depth_frame() 
-            color_frame = aligned_frames.get_color_frame()
+        aligned_depth_frame = aligned_frames.get_depth_frame() 
+        color_frame = aligned_frames.get_color_frame()
 
-            color_stream_profile = color_frame.get_profile()
-            color_intrinsics = color_stream_profile.as_video_stream_profile().get_intrinsics()
+        color_stream_profile = color_frame.get_profile()
+        color_intrinsics = color_stream_profile.as_video_stream_profile().get_intrinsics()
 
-            depth_image = np.asanyarray(aligned_depth_frame.get_data())
-
-            
-
-
-            color_image = np.asanyarray(color_frame.get_data())
-            key = cv2.waitKey(1)
-
-            return depth_image, color_image, color_intrinsics
+        #converting into numpy arrays
+        depth_image = np.asanyarray(aligned_depth_frame.get_data())
+        color_image = np.asanyarray(color_frame.get_data())
+    
+        return depth_image, color_image, color_intrinsics
+    
         
     def capture_marker_depth(self, depth_image, color_image):
         gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
@@ -142,10 +196,14 @@ def main(args=None):
 
     marker_finder_publisher = MarkerFinderPublisher()
 
-    rclpy.spin(marker_finder_publisher)
+    try:
+        rclpy.spin(marker_finder_publisher)
+    except KeyboardInterrupt:
+        pass
     marker_finder_publisher.destroy_node()
     rclpy.shutdown()
 
 
 if __name__ == '__main__':
     main()
+
