@@ -36,13 +36,13 @@ class  MarkerFinderPublisher(Node):
         self.align_to = rs.stream.color
         self.align = rs.align(self.align_to)
         self.consecutive_timeouts = 0
+
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
         
         
         #we are publishing to the mrker location topic with 10 outgoing messages stored inside of a queue
-        self.publisher_ = self.create_publisher(String, 'marker_location', 10)
         time_period = 0.5
         self.timer = self.create_timer(time_period, self.timer_callback)
-        self.i = 0
 
     def _poll_frames(self):
         # Try poll loop to avoid long blocking timeouts
@@ -150,7 +150,7 @@ class  MarkerFinderPublisher(Node):
         parameters =  cv2.aruco.DetectorParameters()
         detector = cv2.aruco.ArucoDetector(dictionary, parameters)
         corners, ids, rejected = detector.detectMarkers(gray)
-        marker_length = 0.05
+        marker_length = 0.08
         if ids is None:
             return
         
@@ -160,12 +160,20 @@ class  MarkerFinderPublisher(Node):
             intrinsic_camera_matrix,
             dist_coeffs
         )
-        return rvecs, tvecs
+        return rvecs, tvecs, ids
 
       
     def timer_callback(self):
-        color_image, intrinsic_camera_matrix, dist_coeffs = self.capture_depth_color_image()
-        rvecs, tvecs = self.capture_marker_rvec_tvec(color_image, intrinsic_camera_matrix, dist_coeffs)
+        result = self.capture_depth_color_image()
+        if result is None:
+            self.get_logger().warn("NOT DETECTING MARKER!!")
+            return
+        color_image, intrinsic_camera_matrix, dist_coeffs = result
+        result1 = self.capture_marker_rvec_tvec(color_image, intrinsic_camera_matrix, dist_coeffs)
+        if result1 is None:
+            self.get_logger().warn("RVEC AND TVEC ISSUE")
+            return
+        rvecs, tvecs, ids = result1
         for i in range(len(ids)):
             rvec = rvecs[i]
             tvec = tvecs[i]
@@ -208,6 +216,7 @@ if __name__ == '__main__':
 
 
         
+
 
 
 
