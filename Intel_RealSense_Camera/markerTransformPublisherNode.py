@@ -1,9 +1,11 @@
 import rclpy
 from rclpy.node import Node
 import pyrealsense2 as rs
+from sensor_msgs.msg import Image, CameraInfo
 import cv2
 import numpy as np
 
+from cv_bridge import CvBridge
 from geometry_msgs.msg import TransformStamped
 
 import tf2_ros
@@ -15,137 +17,44 @@ class  MarkerFinderPublisher(Node):
     def __init__(self):
         #initialize the node
         super().__init__('marker_finder_publisher')
-        #main streaming interface for the camera 
-        self.pipeline = rs.pipeline()
-        self.config = rs.config()
 
+        self.subscription_aruco = self.create_subscription(
+            Image,
+            'camera/camera/color/image_raw', 
+            self.publish_tf_frame,
+            10)
+        self.subscription_cam_info = self.create_subscription(
+            CameraInfo,
+            '/camera/camera/color/camera_info',
+            self.capture_camera_info,
+            10
+        )
+        self.bridge = CvBridge()
 
-        #enables the depth stream 
-        self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        #enables the color stream
-        self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-
-        self._start_pipeline()
-
-        #timeout counter
-        self.max_poll_ms = 500
-        self.restart_after_timeouts = 5
-        self.poll_tries = 6            # total ~3s per timer tick
-
-        #sets u; frame alignment to map the color image to the depth image 
-        self.align_to = rs.stream.color
-        self.align = rs.align(self.align_to)
-        self.consecutive_timeouts = 0
+        self.camera_matrix = None
+        self.dist_coeffs = None
 
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
         
-        
-        #we are publishing to the mrker location topic with 10 outgoing messages stored inside of a queue
-        time_period = 0.5
-        self.timer = self.create_timer(time_period, self.timer_callback)
 
-    def _poll_frames(self):
-        # Try poll loop to avoid long blocking timeouts
-        for _ in range(self.poll_tries):
-            try:
-                fs = self.pipeline.wait_for_frames(self.max_poll_ms)
-            except Exception:
-                fs = None
-            if fs:
-                return fs
-        return None
-
-    def _start_pipeline(self):
-        # (Re)start pipeline and related helpers
-        self.profile = self.pipeline.start(self.config)
-
-        # Reduce internal frame queues to avoid stale frames
-        dev = self.profile.get_device()
-        for s in dev.sensors:
-            if s.supports(rs.option.frames_queue_size):
-                try:
-                    s.set_option(rs.option.frames_queue_size, 1)
-                except Exception:
-                    pass
-
-        self.depth_sensor = dev.first_depth_sensor()
-        self.depth_scale = self.depth_sensor.get_depth_scale()
-        self.align = rs.align(rs.stream.color)
-
-        # Warmup (non-fatal if some time out)
-        for _ in range(10):
-            try:
-                fs = self.pipeline.wait_for_frames(200)
-                if fs: break
-            except Exception:
-                pass
-        self.get_logger().info(f"Depth scale: {self.depth_scale:.6f}. Pipeline started.")
-
-    def _stop_pipeline(self):
-        try:
-            self.pipeline.stop()
-        except Exception:
-            pass
-    
-    
-    def _restart_pipeline(self, do_hw_reset=False):
-        self.get_logger().warn("Restarting RealSense pipeline...")
-        self._stop_pipeline()
-        if do_hw_reset:
-            try:
-                self.profile.get_device().hardware_reset()
-            except Exception:
-                pass
-        self._start_pipeline()
-        self.consecutive_timeouts = 0
-    
     #code to capture the depth and color image numpy arrays along with the intrinsic matrix for the color image
-    def capture_depth_color_image(self):
+    def capture_camera_info(self, msg: CameraInfo):
+        if self.camera_matrix is None:
+            K = np.array(msg.k).reshape(3, 3)
+            D = np.array(msg.d)
+            self.camera_matrix = K
+            self.dist_coeffs = D
+            self.get_logger().info(f"Camera matrix set:\n{K}\nDistortion:\n{D}")
+    
         
-        #we need to eventually implement constant streaming, updating values in the topic 
-        frames = self._poll_frames()
+    def publish_tf_frame(self, msg: Image):
 
-        #handling failures to receive frames from a camera pipeline 
-        if frames is None:
-            self.consecutive_timeouts += 1
-            self.get_logger().warn(f"No frames ({self.consecutive_timeouts} consecutive timeouts).")
-            if self.consecutive_timeouts >= self.restart_after_timeouts:
-                # First soft restart, then hard reset if still bad
-                hard = (self.consecutive_timeouts >= 2*self.restart_after_timeouts)
-                self._restart_pipeline(do_hw_reset=hard)
+        if self.camera_matrix is None or self.dist_coeffs is None:
             return
 
-        aligned_frames = self.align.process(frames)
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        aligned_depth_frame = aligned_frames.get_depth_frame() 
-        color_frame = aligned_frames.get_color_frame()
-
-        color_stream_profile = color_frame.get_profile()
-        color_intrinsics = color_stream_profile.as_video_stream_profile().get_intrinsics()
-
-        fx = color_intrinsics.fx
-        fy = color_intrinsics.fy
-        cx = color_intrinsics.ppx
-        cy = color_intrinsics.ppy
-        dist_coeffs = np.array(color_intrinsics.coeffs)
-
-        color_image = np.asanyarray(color_frame.get_data())
-
-
-        intrinsic_camera_matrix = np.array([
-            [fx, 0, cx],
-            [0, fy, cy],
-            [0, 0, 1]
-        ], dtype=np.float32)
-
-        self.get_logger().info(f"Camera matrix:\n{intrinsic_camera_matrix}")
-        self.get_logger().info(f"Distortion coeffs: {dist_coeffs}")
-
-        return color_image, intrinsic_camera_matrix, dist_coeffs
-    
-        
-    def capture_marker_rvec_tvec(self, color_image, intrinsic_camera_matrix, dist_coeffs):
-        gray = cv2.cvtColor(color_image, cv2.COLOR_BGR2GRAY)
         dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_7X7_50)
         parameters =  cv2.aruco.DetectorParameters()
         detector = cv2.aruco.ArucoDetector(dictionary, parameters)
@@ -157,23 +66,12 @@ class  MarkerFinderPublisher(Node):
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
             corners,
             marker_length,
-            intrinsic_camera_matrix,
-            dist_coeffs
+            self.camera_matrix,
+            self.dist_coeffs
         )
-        return rvecs, tvecs, ids
-
-      
-    def timer_callback(self):
-        result = self.capture_depth_color_image()
-        if result is None:
-            self.get_logger().warn("NOT DETECTING MARKER!!")
+        if corners is None:
+            self.get_logger().warn("no corners detected!")
             return
-        color_image, intrinsic_camera_matrix, dist_coeffs = result
-        result1 = self.capture_marker_rvec_tvec(color_image, intrinsic_camera_matrix, dist_coeffs)
-        if result1 is None:
-            self.get_logger().warn("RVEC AND TVEC ISSUE")
-            return
-        rvecs, tvecs, ids = result1
         for i in range(len(ids)):
             rvec = rvecs[i]
             tvec = tvecs[i]
@@ -185,8 +83,8 @@ class  MarkerFinderPublisher(Node):
             quat = quaternion_from_matrix(T)
             t = TransformStamped()
             t.header.stamp = self.get_clock().now().to_msg()
-            t.header.frame_id = "camera_color_frame"
-            t.child_frame_id = f"marker_{ids[i][0]}"
+            t.header.frame_id = "camera_color_optical_frame"
+            t.child_frame_id = "marker"
 
             t.transform.translation.x = float(tvec[0][0])
             t.transform.translation.y = float(tvec[0][1])
