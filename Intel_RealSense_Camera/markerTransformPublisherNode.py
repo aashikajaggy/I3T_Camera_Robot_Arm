@@ -59,19 +59,19 @@ class  MarkerFinderPublisher(Node):
         parameters =  cv2.aruco.DetectorParameters()
         detector = cv2.aruco.ArucoDetector(dictionary, parameters)
         corners, ids, rejected = detector.detectMarkers(gray)
-        marker_length = 0.08
+        marker_length = 0.05
         if ids is None:
+            self.get_logger().warn("No corners detected! Reposition the camera.")
             return
-        
+    
+        cv2.aruco.drawDetectedMarkers(cv_image, corners, ids)
+
         rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(
             corners,
             marker_length,
             self.camera_matrix,
             self.dist_coeffs
         )
-        if corners is None:
-            self.get_logger().warn("no corners detected!")
-            return
         for i in range(len(ids)):
             rvec = rvecs[i]
             tvec = tvecs[i]
@@ -79,6 +79,18 @@ class  MarkerFinderPublisher(Node):
             T = np.eye(4)
             T[:3, :3] = R
             T[:3, 3] = tvec.flatten()
+
+            cv2.drawFrameAxes(
+                cv_image,
+                self.camera_matrix,
+                self.dist_coeffs,
+                rvec,
+                tvec,
+                0.05
+            )
+            
+            self.get_logger().info(f"Marker ID {ids[i][0]} position (x, y, z): "
+                f"{tvec[0][0]:.3f}, {tvec[0][1]:.3f}, {tvec[0][2]:.3f}")
 
             quat = quaternion_from_matrix(T)
             t = TransformStamped()
@@ -96,6 +108,19 @@ class  MarkerFinderPublisher(Node):
             t.transform.rotation.w = float(quat[3])
             self.tf_broadcaster.sendTransform(t)
 
+            cv2.putText(
+                cv_image,
+                f"ID: {int(ids[i][0])} z={tvec[0][2]:.2f}m",
+                (10, 30 + i * 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 0),
+                2
+            )
+
+        cv2.imshow("Aruco Pose", cv_image)
+        cv2.waitKey(1)
+
 def main(args=None):
     rclpy.init(args=args)
 
@@ -105,6 +130,7 @@ def main(args=None):
         rclpy.spin(marker_finder_publisher)
     except KeyboardInterrupt:
         pass
+    cv2.destroyAllWindows()
     marker_finder_publisher.destroy_node()
     rclpy.shutdown()
 
