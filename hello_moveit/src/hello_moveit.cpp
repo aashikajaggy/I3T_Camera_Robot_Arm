@@ -1,10 +1,14 @@
 
-
 #include <memory>
+#include <chrono>
 
 #include <rclcpp/rclcpp.hpp>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
 
 int main(int argc, char * argv[])
 {
@@ -28,19 +32,41 @@ int main(int argc, char * argv[])
   move_group_interface.setMaxVelocityScalingFactor(0.2);
   move_group_interface.setMaxAccelerationScalingFactor(0.2);
 
+  // cache that stores all of the transforms in the system
+  tf2_ros::Buffer tf_buffer(node->get_clock());
+  // continuously listens to all of the transforms 
+  tf2_ros::TransformListener tf_listener(tf_buffer);
+  // wait a moment for transforms to arrive before actually using them
+  rclcpp::sleep_for(std::chrono::seconds(1));
+
+  geometry_msgs::msg::TransformStamped marker_tf;
+
+  try {
+    marker_tf = tf_buffer.lookupTransform(
+      "base_link",   
+      "marker",   
+      tf2::TimePointZero,
+      tf2::durationFromSec(1.0)
+    );
+  } catch (tf2::TransformException &ex) {
+    RCLCPP_ERROR(logger, "TF lookup failed: %s", ex.what());
+    rclcpp::shutdown();
+    return 1;
+  }
+
+
   geometry_msgs::msg::Pose target_pose;
 
 
   // 180 degree rotation about the z axis, effector should face down
+  target_pose.position.x = marker_tf.transform.translation.x;
+  target_pose.position.y = marker_tf.transform.translation.y;
+  target_pose.position.z = marker_tf.transform.translation.z;
+
   target_pose.orientation.x = 1.0;
   target_pose.orientation.y = 0.0;
   target_pose.orientation.z = 0.0;
   target_pose.orientation.w = 0.0;
-
-  target_pose.position.x = 0.55;
-  target_pose.position.y = 0.2;
-  target_pose.position.z = 0.3;
-
   
   move_group_interface.setStartStateToCurrentState();
 
